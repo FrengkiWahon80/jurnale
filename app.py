@@ -1,65 +1,125 @@
-# --- MENU 1: DATA SISWA (Lengkap dengan Edit & Hapus) ---
+import streamlit as st
+import pandas as pd
+import openai
+import os
+from datetime import datetime
+from docx import Document
+from docx.shared import Inches
+from io import BytesIO
+
+# --- KONFIGURASI API ---
+# Masukkan API Key OpenAI Anda di sini
+openai.api_key = "MASUKKAN_API_KEY_ANDA_DI_SINI"
+
+# --- FUNGSI DATABASE ---
+def load_data(file_name, columns):
+    if os.path.exists(file_name):
+        return pd.read_csv(file_name)
+    return pd.DataFrame(columns=columns)
+
+def save_data(df, file_name):
+    df.to_csv(file_name, index=False)
+
+# --- FUNGSI WORD DENGAN TANDA TANGAN ---
+def create_word_doc(nama_siswa, konten_laporan, catatan_wali, nama_wali, nama_kepsek):
+    doc = Document()
+    
+    # Judul
+    doc.add_heading('LAPORAN CAPAIAN KOMPETENSI SISWA', 0)
+    
+    # Identitas
+    table_id = doc.add_table(rows=2, cols=2)
+    table_id.cell(0, 0).text = "Nama Siswa:"
+    table_id.cell(0, 1).text = nama_siswa
+    table_id.cell(1, 0).text = "Tanggal Cetak:"
+    table_id.cell(1, 1).text = datetime.now().strftime('%d %B %Y')
+
+    doc.add_paragraph("\n" + "="*50 + "\n")
+    
+    # Isi Laporan dari AI
+    doc.add_heading('Hasil Observasi 8 Dimensi:', level=1)
+    doc.add_paragraph(konten_laporan)
+    
+    doc.add_paragraph("\n" + "-"*50)
+    
+    # Catatan Tambahan Wali Kelas
+    doc.add_heading('Catatan Wali Kelas:', level=2)
+    doc.add_paragraph(catatan_wali)
+
+    doc.add_paragraph("\n\n")
+
+    # Tanda Tangan (Tabel agar rapi kiri-kanan)
+    table_sig = doc.add_table(rows=4, cols=2)
+    table_sig.cell(0, 0).text = "Mengetahui,"
+    table_sig.cell(0, 1).text = "Kota, " + datetime.now().strftime('%d %B %Y')
+    
+    table_sig.cell(1, 0).text = "Kepala Sekolah,"
+    table_sig.cell(1, 1).text = "Wali Kelas,"
+    
+    # Spasi Tanda Tangan
+    table_sig.cell(2, 0).text = "\n\n"
+    table_sig.cell(2, 1).text = "\n\n"
+    
+    table_sig.cell(3, 0).text = f"( {nama_kepsek} )"
+    table_sig.cell(3, 1).text = f"( {nama_wali} )"
+
+    bio = BytesIO()
+    doc.save(bio)
+    bio.seek(0)
+    return bio
+
+# --- FUNGSI AI ---
+def generate_ai_report(nama, catatan_list):
+    gabungan = " ".join(catatan_list)
+    prompt = f"Susun laporan 8 dimensi SKL (Keimanan, Kewargaan, Kritis, Kreatif, Kolaborasi, Mandiri, Sehat, Komunikasi) untuk {nama} berdasarkan data: {gabungan}. Gunakan narasi profesional."
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "system", "content": "Anda guru profesional."}, {"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content
+    except:
+        return "Gagal generate laporan AI. Periksa API Key."
+
+# --- INITIAL LOAD DATA ---
+df_siswa = load_data("siswa.csv", ["Nama", "NISN"])
+df_jurnal = load_data("jurnal.csv", ["Tanggal", "Nama", "Dimensi", "Catatan"])
+
+# --- SIDEBAR NAVIGASI ---
+st.sidebar.title("Navigasi")
+menu = st.sidebar.selectbox("Pilih Menu", ["Data Siswa", "Isi Jurnal Harian", "Rekap & Generate AI"])
+
+# --- LOGIKA HALAMAN ---
+
 if menu == "Data Siswa":
-    st.header("Manajemen Data Siswa")
+    st.header("👥 Manajemen Data Siswa")
     
-    # 1. Form Tambah Siswa
-    with st.expander("➕ Tambah Siswa Baru"):
-        with st.form("tambah_siswa"):
-            nama_baru = st.text_input("Nama Siswa Baru")
-            nisn_baru = st.text_input("NISN")
-            if st.form_submit_button("Simpan Siswa"):
-                if nama_baru:
-                    new_row = pd.DataFrame({"Nama": [nama_baru], "NISN": [nisn_baru]})
-                    df_siswa = pd.concat([df_siswa, new_row], ignore_index=True)
-                    save_data(df_siswa, "siswa.csv")
-                    st.success("Siswa berhasil ditambahkan!")
-                    st.rerun()
+    # Tambah Siswa
+    with st.expander("➕ Tambah Siswa"):
+        with st.form("tambah"):
+            n = st.text_input("Nama Siswa")
+            ni = st.text_input("NISN")
+            if st.form_submit_button("Simpan"):
+                df_siswa = pd.concat([df_siswa, pd.DataFrame({"Nama":[n], "NISN":[ni]})], ignore_index=True)
+                save_data(df_siswa, "siswa.csv")
+                st.success("Tersimpan!")
+                st.rerun()
 
-    st.divider()
-
-    # 2. Tabel Edit Data (Inline Editing)
-    st.subheader("Edit Biodata Siswa")
-    st.info("💡 Klik pada sel tabel di bawah untuk mengubah Nama atau NISN, lalu tekan tombol 'Simpan Perubahan'.")
-    
-    # Menampilkan data editor
-    edited_df = st.data_editor(df_siswa, num_rows="dynamic", key="editor_siswa")
-    
-    if st.button("💾 Simpan Perubahan"):
-        # Logika Sinkronisasi: Jika nama berubah, update juga di jurnal.csv
-        for index, row in edited_df.iterrows():
-            if index < len(df_siswa):
-                old_name = df_siswa.iloc[index]["Nama"]
-                new_name = row["Nama"]
-                
-                if old_name != new_name:
-                    # Update nama di file jurnal
-                    df_jurnal.loc[df_jurnal["Nama"] == old_name, "Nama"] = new_name
-                    save_data(df_jurnal, "jurnal.csv")
-        
-        # Simpan perubahan biodata
+    # Edit & Hapus
+    st.subheader("Daftar Siswa")
+    edited_df = st.data_editor(df_siswa, num_rows="dynamic")
+    if st.button("Simpan Perubahan"):
         save_data(edited_df, "siswa.csv")
-        st.success("Perubahan biodata dan riwayat jurnal berhasil disinkronkan!")
+        st.success("Data diperbarui!")
         st.rerun()
 
-    st.divider()
-
-    # 3. Fitur Hapus Siswa
-    st.subheader("🗑️ Hapus Siswa")
-    if not df_siswa.empty:
-        siswa_hapus = st.selectbox("Pilih Siswa yang akan dihapus", df_siswa["Nama"].tolist())
-        konfirmasi = st.checkbox(f"Saya yakin ingin menghapus {siswa_hapus} dan semua catatan jurnalnya.")
-        
-        if st.button("Hapus Permanen"):
-            if konfirmasi:
-                # Hapus dari data siswa
-                df_siswa = df_siswa[df_siswa["Nama"] != siswa_hapus]
-                save_data(df_siswa, "siswa.csv")
-                
-                # Hapus dari data jurnal
-                df_jurnal = df_jurnal[df_jurnal["Nama"] != siswa_hapus]
-                save_data(df_jurnal, "jurnal.csv")
-                
-                st.error(f"Data {siswa_hapus} telah dihapus dari sistem.")
-                st.rerun()
-            else:
-                st.warning("Silakan centang kotak konfirmasi terlebih dahulu.")
+elif menu == "Isi Jurnal Harian":
+    st.header("📝 Jurnal Harian")
+    if df_siswa.empty:
+        st.warning("Isi data siswa dulu.")
+    else:
+        with st.form("jurnal"):
+            nama = st.selectbox("Siswa", df_siswa["Nama"])
+            dim = st.selectbox("Dimensi", ["Keimanan", "Kewargaan", "Kritis", "Kreatif", "Kolaborasi", "Mandiri", "Kesehatan", "Komunikasi"])
+            txt = st.text_area("Catatan Kejadian")
+            if st.form_submit_button("Simp

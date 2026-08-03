@@ -82,7 +82,7 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
         c.execute("INSERT INTO users (username, password, nama_lengkap, nip, nama_sekolah, nama_kelas, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                  ('guru1', '12345', 'Budi Santoso, S.Pd.', '198501012010011001', DEFAULT_SEKOLAH, 'Kelas 7A', 'guru_wali'))
+                  ('guru1', '12345', 'Daniel F. L. Wahon, S.S, S.Pd.', '198001032024211002', DEFAULT_SEKOLAH, 'guru_wali'))
         c.execute("INSERT INTO users (username, password, nama_lengkap, nip, nama_sekolah, nama_kelas, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
                   ('guru2', '12345', 'Siti Rahma, S.Pd.', '198802022011012002', DEFAULT_SEKOLAH, 'Kelas 7B', 'guru_wali'))
         c.execute("INSERT INTO users (username, password, nama_lengkap, nip, nama_sekolah, nama_kelas, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -194,7 +194,6 @@ if st.session_state['user'] is None:
         st.markdown("##### Registrasi Akun Guru Wali Kelas Baru")
         reg_nama = st.text_input("Nama Lengkap Guru (dengan Gelar)")
         reg_nip = st.text_input("NIP Guru")
-        reg_kelas = st.selectbox("Wali Kelas", ["Kelas 7A", "Kelas 7B", "Kelas 7C", "Kelas 8A", "Kelas 8B", "Kelas 9A", "Kelas 9B"])
         reg_username = st.text_input("Username Baru")
         reg_password = st.text_input("Password Baru", type="password")
         

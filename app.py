@@ -364,7 +364,63 @@ else:
 
     if students:
       for s in students:
-        st.write(f"- **{s[1]}** (NISN: {s[2]})")
+        s_id, s_nama, s_nisn = s
+        with st.expander(f"👤 **{s_nama}** (NISN: {s_nisn})"):
+          col_edit, col_del = st.columns(2)
+
+          # --- OPSI EDIT DATA SISWA ---
+          with col_edit:
+            st.markdown("##### ✏️ Edit Data Siswa")
+            new_nama = st.text_input(
+                "Nama Lengkap Siswa", value=s_nama, key=f"edit_nama_{s_id}"
+            )
+            new_nisn = st.text_input(
+                "NISN Siswa", value=s_nisn, key=f"edit_nisn_{s_id}"
+            )
+            if st.button("💾 Simpan Perubahan", key=f"save_{s_id}"):
+              if new_nama:
+                conn = sqlite3.connect("laporan_siswa.db")
+                c = conn.cursor()
+                c.execute(
+                    """
+                                      UPDATE students 
+                                      SET nama_siswa = ?, nisn = ? 
+                                      WHERE id = ? AND user_id = ?
+                                  """,
+                    (new_nama, new_nisn, s_id, st.session_state["user_id"]),
+                )
+                conn.commit()
+                conn.close()
+                st.success("Data siswa berhasil diperbarui!")
+                st.rerun()
+              else:
+                st.warning("Nama siswa tidak boleh kosong!")
+
+          # --- OPSI HAPUS SISWA ---
+          with col_del:
+            st.markdown("##### 🗑️ Hapus Siswa")
+            st.warning(
+                "Menghapus siswa ini juga akan menghapus seluruh catatan harian"
+                " miliknya."
+            )
+            if st.button(
+                "🗑️ Hapus Siswa Ini", key=f"del_{s_id}", type="secondary"
+            ):
+              conn = sqlite3.connect("laporan_siswa.db")
+              c = conn.cursor()
+              # Hapus catatan harian terkait terlebih dahulu
+              c.execute(
+                  "DELETE FROM daily_logs WHERE student_id = ?", (s_id,)
+              )
+              # Hapus data siswa
+              c.execute(
+                  "DELETE FROM students WHERE id = ? AND user_id = ?",
+                  (s_id, st.session_state["user_id"]),
+              )
+              conn.commit()
+              conn.close()
+              st.success(f"Siswa {s_nama} berhasil dihapus!")
+              st.rerun()
     else:
       st.info("Belum ada data siswa. Silakan tambahkan siswa di atas.")
 

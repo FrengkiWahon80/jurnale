@@ -1,2 +1,4 @@
-streamlit
-duckduckgo_search
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+docxtpl==0.16.7

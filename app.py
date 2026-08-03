@@ -4,7 +4,6 @@ import hashlib
 import datetime
 import io
 from docx import Document
-from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import google.generativeai as genai
 
@@ -72,13 +71,13 @@ def generate_docx(nama_guru, sekolah, kelas, nama_siswa, nisn, summary_text, log
     
     # Identitas
     p_info = doc.add_paragraph()
-    p_info.add_run(f"Nama Sekolah: ").bold = True
+    p_info.add_run("Nama Sekolah: ").bold = True
     p_info.add_run(f"{sekolah}\n")
-    p_info.add_run(f"Kelas: ").bold = True
+    p_info.add_run("Kelas: ").bold = True
     p_info.add_run(f"{kelas}\n")
-    p_info.add_run(f"Guru Wali: ").bold = True
+    p_info.add_run("Guru Wali: ").bold = True
     p_info.add_run(f"{nama_guru}\n")
-    p_info.add_run(f"Nama Siswa: ").bold = True
+    p_info.add_run("Nama Siswa: ").bold = True
     p_info.add_run(f"{nama_siswa} (NISN: {nisn})\n")
     
     doc.add_heading('1. Rangkuman Evaluasi AI (7 Kebiasaan & 8 Dimensi)', level=2)
@@ -135,7 +134,9 @@ if not st.session_state['logged_in']:
         if st.button("Login"):
             conn = sqlite3.connect('laporan_siswa.db')
             c = conn.cursor()
-            c.execute('SELECT * FROM users WHERE username = ?', (username,))
+            c.execute('''
+                SELECT * FROM users WHERE username = ?
+            ''', (username,))
             user = c.fetchone()
             conn.close()
             
@@ -166,8 +167,10 @@ if not st.session_state['logged_in']:
                 try:
                     conn = sqlite3.connect('laporan_siswa.db')
                     c = conn.cursor()
-                    c.execute('INSERT INTO users(username, password, nama_guru, nama_sekolah, kelas) VALUES (?,?,?,?,?)',
-                              (new_user, make_hashes(new_password), nama_guru, nama_sekolah, kelas))
+                    c.execute('''
+                        INSERT INTO users(username, password, nama_guru, nama_sekolah, kelas) 
+                        VALUES (?,?,?,?,?)
+                    ''', (new_user, make_hashes(new_password), nama_guru, nama_sekolah, kelas))
                     conn.commit()
                     conn.close()
                     st.success("Akun berhasil dibuat! Silakan login.")
@@ -210,8 +213,10 @@ else:
             if nama_siswa:
                 conn = sqlite3.connect('laporan_siswa.db')
                 c = conn.cursor()
-                c.execute('INSERT INTO students(user_id, nama_siswa, nisn) VALUES (?,?,?)', 
-                          (st.session_state['user_id'], nama_siswa, nisn))
+                c.execute('''
+                    INSERT INTO students(user_id, nama_siswa, nisn) 
+                    VALUES (?,?,?)
+                ''', (st.session_state['user_id'], nama_siswa, nisn))
                 conn.commit()
                 conn.close()
                 st.success(f"Siswa {nama_siswa} berhasil ditambahkan!")
@@ -221,7 +226,11 @@ else:
         st.subheader("Daftar Siswa Wali Anda")
         conn = sqlite3.connect('laporan_siswa.db')
         c = conn.cursor()
-        c.execute('SELECT id, nama_siswa, nisn FROM students WHERE user_id = ?', (st.session_state['user_id'],))
+        c.execute('''
+            SELECT id, nama_siswa, nisn 
+            FROM students 
+            WHERE user_id = ?
+        ''', (st.session_state['user_id'],))
         students = c.fetchall()
         conn.close()
         
@@ -239,7 +248,11 @@ else:
         
         conn = sqlite3.connect('laporan_siswa.db')
         c = conn.cursor()
-        c.execute('SELECT id, nama_siswa FROM students WHERE user_id = ?', (st.session_state['user_id'],))
+        c.execute('''
+            SELECT id, nama_siswa 
+            FROM students 
+            WHERE user_id = ?
+        ''', (st.session_state['user_id'],))
         students = c.fetchall()
         conn.close()
 
@@ -256,11 +269,11 @@ else:
             
             with st.expander("7 Kebiasaan Anak Indonesia Hebat (Panduan & Catatan)", expanded=True):
                 st.caption("Bangun Pagi, Beribadah, Berolahraga, Gemar Membaca/Belajar, Makan Sehat, Bermasyarakat, Istirahat Cukup.")
-                catatan_kebiasaan = st.text_area("Catatan Kebiasaan Hari Ini:", placeholder="Contoh: Menunjukkan kedisiplinan beribadah dan membawa bekal sehat, namun perlu diingatkan untuk istirahat tepat waktu.")
+                catatan_kebiasaan = st.text_area("Catatan Kebiasaan Hari Ini:", placeholder="Contoh: Menunjukkan kedisiplinan beribadah dan membawa bekal sehat...")
 
             with st.expander("8 Dimensi Lulusan (Panduan & Catatan)", expanded=True):
                 st.caption("Dimensi Lulusan/Profil Pelajar: Keimanan, Kewargaan, Penalaran Kritis, Kreativitas, Mandiri, Gotong Royong, Kebinekaan, Kesehatan.")
-                catatan_dimensi = st.text_area("Catatan Dimensi Hari Ini:", placeholder="Contoh: Menunjukkan sikap gotong royong saat piket kelas dan aktif mengajukan pertanyaan (penalaran kritis).")
+                catatan_dimensi = st.text_area("Catatan Dimensi Hari Ini:", placeholder="Contoh: Menunjukkan sikap gotong royong saat piket kelas...")
 
             catatan_umum = st.text_area("Catatan Umum Tambahan:", placeholder="Catatan perilaku khusus/kejadian penting hari ini.")
 
@@ -283,7 +296,11 @@ else:
 
         conn = sqlite3.connect('laporan_siswa.db')
         c = conn.cursor()
-        c.execute('SELECT id, nama_siswa, nisn FROM students WHERE user_id = ?', (st.session_state['user_id'],))
+        c.execute('''
+            SELECT id, nama_siswa, nisn 
+            FROM students 
+            WHERE user_id = ?
+        ''', (st.session_state['user_id'],))
         students = c.fetchall()
         conn.close()
 
@@ -294,7 +311,21 @@ else:
             selected_rep = st.selectbox("Pilih Siswa untuk Generasi Laporan:", list(student_dict_rep.keys()))
             selected_s_id, s_nama, s_nisn = student_dict_rep[selected_rep]
 
-            # Ambil semua log siswa ini
+            # Ambil semua log siswa ini (PERBAIKAN TRIPLE QUOTES DI SINI)
             conn = sqlite3.connect('laporan_siswa.db')
             c = conn.cursor()
-            c.execute('SELECT tanggal, catatan_kebiasaa
+            c.execute('''
+                SELECT tanggal, catatan_kebiasaan, catatan_dimensi, catatan_umum 
+                FROM daily_logs 
+                WHERE student_id = ? 
+                ORDER BY tanggal ASC
+            ''', (selected_s_id,))
+            logs = c.fetchall()
+            conn.close()
+
+            if not logs:
+                st.info("Siswa ini belum memiliki catatan harian.")
+            else:
+                st.write(f"Total catatan harian ditemukan: **{len(logs)}** catatan.")
+                
+                # Tampilkan Pr

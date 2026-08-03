@@ -1,3 +1,2 @@
 streamlit
 duckduckgo_search
-gemini

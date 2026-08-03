@@ -311,7 +311,7 @@ else:
             selected_rep = st.selectbox("Pilih Siswa untuk Generasi Laporan:", list(student_dict_rep.keys()))
             selected_s_id, s_nama, s_nisn = student_dict_rep[selected_rep]
 
-            # Ambil semua log siswa ini (PERBAIKAN TRIPLE QUOTES DI SINI)
+            # Ambil semua log siswa ini
             conn = sqlite3.connect('laporan_siswa.db')
             c = conn.cursor()
             c.execute('''
@@ -328,4 +328,79 @@ else:
             else:
                 st.write(f"Total catatan harian ditemukan: **{len(logs)}** catatan.")
                 
-                # Tampilkan Pr
+                # Preview Riwayat Catatan Harian
+                with st.expander("👁️ Lihat Riwayat Catatan Harian Siswa Ini"):
+                    for log in logs:
+                        st.markdown(f"**Tanggal:** {log[0]}")
+                        st.markdown(f"- **7 Kebiasaan:** {log[1]}")
+                        st.markdown(f"- **8 Dimensi:** {log[2]}")
+                        st.markdown(f"- **Umum:** {log[3]}")
+                        st.divider()
+
+                st.subheader("1. Buat Evaluasi AI")
+                if st.button("🤖 Generasi Rangkuman Evaluasi dengan AI"):
+                    if not gemini_api_key:
+                        st.error("Silakan masukkan Google Gemini API Key pada menu sidebar terlebih dahulu!")
+                    else:
+                        with st.spinner("Gemini AI sedang menyusun narasi evaluasi perkembangan siswa..."):
+                            try:
+                                genai.configure(api_key=gemini_api_key)
+                                model = genai.GenerativeModel('gemini-1.5-flash')
+
+                                prompt = f"""
+                                Anda adalah seorang Guru Wali Kelas yang bijak dan profesional. 
+                                Buatkan narasi evaluasi perkembangan siswa bernama '{s_nama}' berdasarkan data catatan harian berikut:
+                                
+                                """
+                                for log in logs:
+                                    prompt += f"- Tanggal {log[0]}: Kebiasaan [{log[1]}], Dimensi [{log[2]}], Catatan Lain [{log[3]}]\n"
+
+                                prompt += """
+                                Tulis narasi rangkuman perkembangan yang santun, ramah, dan mendidik untuk disampaikan kepada Orang Tua Siswa. 
+                                Soroti hal positif terkait 7 Kebiasaan Anak Indonesia & 8 Dimensi Lulusan, serta berikan rekomendasi/saran untuk perkembangan anak ke depannya.
+                                """
+
+                                response = model.generate_content(prompt)
+                                st.session_state[f'summary_{selected_s_id}'] = response.text
+                                st.success("Rangkuman AI berhasil dibuat!")
+                            except Exception as e:
+                                st.error(f"Gagal memproses AI: {e}")
+
+                # Ambil atau diedit naskah rangkuman
+                summary_key = f'summary_{selected_s_id}'
+                current_summary = st.session_state.get(summary_key, "")
+
+                summary_text = st.text_area(
+                    "Hasil Rangkuman Evaluasi AI (Dapat diedit/disesuaikan secara manual):",
+                    value=current_summary,
+                    height=250
+                )
+                
+                # Simpan perubahan manual jika ada
+                st.session_state[summary_key] = summary_text
+
+                st.divider()
+                st.subheader("2. Download Dokumen Word (.docx)")
+
+                # TOMBOL DOWNLOAD WORD
+                if summary_text.strip():
+                    docx_buffer = generate_docx(
+                        guru_data['nama_guru'],
+                        guru_data['nama_sekolah'],
+                        guru_data['kelas'],
+                        s_nama,
+                        s_nisn,
+                        summary_text,
+                        logs
+                    )
+
+                    file_name_clean = f"Laporan_Perkembangan_{s_nama.replace(' ', '_')}.docx"
+
+                    st.download_button(
+                        label="📄 Download Laporan Word (.docx)",
+                        data=docx_buffer,
+                        file_name=file_name_clean,
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
+                else:
+                    st.info("💡 Klik tombol **'Generasi Rangkuman Evaluasi dengan AI'** di atas atau isi kotaknya terlebih dahulu untuk mengunduh berkas Word.")

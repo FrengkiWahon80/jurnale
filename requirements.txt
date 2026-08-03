@@ -1,5 +1,4 @@
 streamlit
-openai
 pandas
-python-dotenv
+openai
 python-docx

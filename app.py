@@ -59,7 +59,7 @@ def init_db():
         )
     ''')
     
-    # Seed Data Default jika Kosong
+    # Seed Data Default
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
         c.execute("INSERT INTO users (username, password, nama_lengkap, nip, role, nama_kelas) VALUES (?, ?, ?, ?, ?, ?)",
@@ -69,7 +69,6 @@ def init_db():
         c.execute("INSERT INTO users (username, password, nama_lengkap, nip, role, nama_kelas) VALUES (?, ?, ?, ?, ?, ?)",
                   ('kepsek', '12345', 'Drs. Ahmad Dahlan, M.Pd.', '197003031995031001', 'kepsek', '-'))
         
-        # Seed Siswa Default
         c.execute("INSERT INTO students (nama_siswa, nisn, nama_kelas) VALUES (?, ?, ?)", ('Ahmad Fauzi', '0012345678', 'Kelas 5A'))
         c.execute("INSERT INTO students (nama_siswa, nisn, nama_kelas) VALUES (?, ?, ?)", ('Siti Aminah', '0012345679', 'Kelas 5A'))
 
@@ -91,14 +90,12 @@ def init_db():
 
 init_db()
 
-# --- 3. AI CHARACTER ENGINE (RAG / AI SYNTHESIZER) ---
+# --- 3. AI CHARACTER ENGINE ---
 def generate_ai_character_summary(nama_siswa, list_kebiasaan, list_catatan):
-    """Fungsi AI yang menganalisis pola kebiasaan & catatan harian untuk menyimpulkan karakter anak."""
     total_jurnal = len(list_kebiasaan)
     if total_jurnal == 0:
-        return f"Belum ada data jurnal harian yang cukup untuk dianalisis oleh AI bagi siswa {nama_siswa}."
+        return f"Belum ada data jurnal harian yang cukup untuk dianalisis bagi siswa {nama_siswa}."
 
-    # Hitung performa kebiasaan
     skor_counts = {}
     for entry in list_kebiasaan:
         try:
@@ -106,36 +103,30 @@ def generate_ai_character_summary(nama_siswa, list_kebiasaan, list_catatan):
             for k, v in data.items():
                 if v:
                     skor_counts[k] = skor_counts.get(k, 0) + 1
-        except:
+        except Exception:
             pass
 
-    # Analisis Teks Catatan Harian
-    catatan_text = " ".join([c for c in list_catatan if c])
+    summary = f"🤖 ANALISIS PERKEMBANGAN KARAKTER AI:\n\n"
+    summary += f"Berdasarkan rekapitulasi {total_jurnal} entri jurnal harian, ananda {nama_siswa} menunjukkan indikator perkembangan karakter sebagai berikut:\n\n"
     
-    summary = f"🤖 **ANALISIS PERKEMBANGAN KARAKTER AI (ANAK INDONESIA HEBAT):**\n\n"
-    summary += f"Berdasarkan rekapitulasi {total_jurnal} entri jurnal harian, ananda **{nama_siswa}** menunjukkan indikator perkembangan karakter sebagai berikut:\n\n"
-    
-    # Kesimpulan Sikap Spiritual & Sosial
-    summary += "1. **Sikap Spiritual & Sosial (SKL 1 & 2):** "
-    if skor_counts.get("Beribadah Tepat Waktu", 0) / total_jurnal >= 0.7:
+    summary += "1. Sikap Spiritual & Sosial (SKL 1 & 2): "
+    if skor_counts.get("Beribadah Tepat Waktu", 0) / max(total_jurnal, 1) >= 0.7:
         summary += "Sangat konsisten dalam ketaatan beribadah dan menunjukkan tingkat kedisiplinan yang tinggi. "
     else:
         summary += "Sudah mulai menunjukkan ketaatan beribadah, namun masih perlu dorongan pembiasaan harian. "
         
-    if skor_counts.get("Membantu Orang Tua / Gotong Royong", 0) / total_jurnal >= 0.6:
+    if skor_counts.get("Membantu Orang Tua / Gotong Royong", 0) / max(total_jurnal, 1) >= 0.6:
         summary += "Memiliki rasa empati dan kepedulian sosial yang menonjol.\n"
     else:
         summary += "Sikap gotong royong dan kepedulian sosial berada pada tahap berkembang.\n"
 
-    # Kesimpulan Literasi & Akademis
-    summary += "2. **Literasi & Pembelajaran (SKL Pengetahuan):** "
-    if skor_counts.get("Gemar Membaca / Literasi", 0) / total_jurnal >= 0.6:
+    summary += "2. Literasi & Pembelajaran (SKL Pengetahuan): "
+    if skor_counts.get("Gemar Membaca / Literasi", 0) / max(total_jurnal, 1) >= 0.6:
         summary += "Memiliki minat membaca dan rasa ingin tahu yang kuat. "
     else:
         summary += "Perlu ditingkatkan motivasi literasi dan pendampingan membaca rutin. "
 
-    # Rekomendasi AI untuk Wali Kelas & Orang Tua
-    summary += f"\n\n💡 **Rekomendasi Pengembangan AI:** Ananda {nama_siswa} disarankan untuk terus diapresiasi pada kebiasaan positifnya dan diberikan pendampingan pada aspek yang masih berkembang."
+    summary += f"\n\n💡 Rekomendasi Pengembangan AI: Ananda {nama_siswa} disarankan untuk terus diapresiasi pada kebiasaan positifnya dan diberikan pendampingan pada aspek yang masih berkembang."
     
     return summary
 
@@ -168,7 +159,7 @@ if st.session_state['user'] is None:
                 st.rerun()
             else:
                 st.error("Username atau password salah!")
-    st.info("💡 **Akun Login Demo:**\n- Guru Kelas 5A: `guru1` / `12345`\n- Guru Kelas 5B: `guru2` / `12345`\n- Kepala Sekolah: `kepsek` / `12345`")
+    st.info("💡 Akun Login Demo:\n- Guru Kelas 5A: guru1 / 12345\n- Guru Kelas 5B: guru2 / 12345\n- Kepala Sekolah: kepsek / 12345")
 
 # --- 6. DASHBOARD UTAMA ---
 else:
@@ -187,18 +178,15 @@ else:
     conn = get_connection()
     c = conn.cursor()
 
-    # Data Isolation per Kelas
     if user['role'] == 'guru_wali':
         c.execute("SELECT * FROM students WHERE nama_kelas = ?", (user['nama_kelas'],))
     else:
         c.execute("SELECT * FROM students")
     students = c.fetchall()
 
-    # AMBIL MASTER KEBIASAAN (8 SKL)
     c.execute("SELECT * FROM habits")
     master_habits = c.fetchall()
 
-    # TAB NAVIGATION
     tab1, tab2, tab3, tab4 = st.tabs([
         "👨‍🎓 Input Data Siswa", 
         "📝 Jurnal Harian & 8 SKL", 
@@ -215,8 +203,6 @@ else:
             st.markdown("##### Tambah Siswa Baru")
             nama_baru = st.text_input("Nama Lengkap Siswa")
             nisn_baru = st.text_input("NISN")
-            
-            # Jika admin/kepsek bisa pilih kelas, jika guru wali otomatis kelasnya
             kelas_pilihan = user['nama_kelas'] if user['role'] == 'guru_wali' else st.selectbox("Kelas", ["Kelas 5A", "Kelas 5B"])
 
             if st.button("Tambah Siswa", type="primary"):
@@ -269,23 +255,3 @@ else:
                 skor_json = json.dumps(skor_kebiasaan_input)
                 c.execute("INSERT INTO journal_entries (student_id, tanggal, skor_kebiasaan, catatan_harian) VALUES (?, ?, ?, ?)",
                           (selected_student_id, tanggal.strftime('%Y-%m-%d'), skor_json, catatan_harian))
-                conn.commit()
-                st.success("Jurnal dan catatan harian berhasil disimpan!")
-        else:
-            st.warning("Silakan tambah data siswa terlebih dahulu di Tab 'Input Data Siswa'.")
-
-    # ==================== TAB 3: REKAPITULASI ====================
-    with tab3:
-        st.subheader("📊 Rekapitulasi Kebiasaan & Catatan")
-        if students:
-            selected_student_rekap = st.selectbox("Pilih Siswa untuk Dilihat Rekapnya", list(student_dict.keys()), key="rekap_select")
-            rekap_student_id = student_dict[selected_student_rekap]
-
-            c.execute("SELECT tanggal, skor_kebiasaan, catatan_harian FROM journal_entries WHERE student_id = ? ORDER BY tanggal DESC", (rekap_student_id,))
-            rekap_entries = c.fetchall()
-
-            if rekap_entries:
-                for entry in rekap_entries:
-                    with st.expander(f"📅 Tanggal: {entry[0]}"):
-                        st.write(f"**Catatan Harian Wali Kelas:** {entry[2] if entry[2] else '-'}")
-                        st.write("**Capaian Kebias
